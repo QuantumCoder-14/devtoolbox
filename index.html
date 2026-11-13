@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DevToolbox — JSON, Base64, URL and hash tools that run in your browser</title>
+<meta name="description" content="Format and validate JSON, encode Base64, encode URLs and hash text. Everything runs on your device: nothing you paste is uploaded.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* Catppuccin Mocha, borrowed rather than approximated */
+    --base:#1e1e2e; --mantle:#181825; --crust:#11111b;
+    --surface0:#313244; --surface1:#45475a;
+    --text:#cdd6f4; --subtext:#a6adc8; --overlay:#6c7086;
+    --blue:#89b4fa; --green:#a6e3a1; --red:#f38ba8; --yellow:#f9e2af;
+    --mauve:#cba6f7; --teal:#94e2d5;
+    --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+    --sans:'Public Sans',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--base);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  a{color:var(--blue)}
+  .wrap{max-width:1100px;margin:0 auto;padding:0 22px}
+  header{border-bottom:1px solid var(--surface0);padding:26px 0 20px;background:var(--mantle)}
+  h1{font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:-.02em}
+  h1 span{color:var(--green)}
+  .tag{color:var(--subtext);font-size:13.5px;margin-top:5px}
+  .badge{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;color:var(--teal);
+    border:1px solid var(--surface1);border-radius:100px;padding:4px 11px;margin-top:12px}
+  .badge::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--green)}
+  nav{display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid var(--surface0);background:var(--mantle);position:sticky;top:0;z-index:5}
+  nav button{appearance:none;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;
+    font-family:var(--mono);font-size:12.5px;color:var(--overlay);padding:12px 16px;white-space:nowrap}
+  nav button:hover{color:var(--text)}
+  nav button[aria-selected="true"]{color:var(--blue);border-bottom-color:var(--blue)}
+  main{padding:26px 0 60px}
+  .pane{display:none}.pane.on{display:block}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:820px){.cols{grid-template-columns:1fr}}
+  label{display:block;font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--overlay);margin-bottom:7px}
+  textarea,input[type=text]{width:100%;background:var(--crust);color:var(--text);border:1px solid var(--surface0);
+    border-radius:8px;padding:12px;font-family:var(--mono);font-size:13px;line-height:1.55;resize:vertical}
+  textarea:focus,input:focus{outline:none;border-color:var(--blue)}
+  textarea{min-height:300px}
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}
+  button.act{appearance:none;cursor:pointer;font-family:var(--mono);font-size:12px;color:var(--text);
+    background:var(--surface0);border:1px solid var(--surface1);border-radius:7px;padding:8px 14px}
+  button.act:hover{background:var(--surface1)}
+  button.act.primary{background:var(--blue);border-color:var(--blue);color:var(--crust);font-weight:600}
+  button.act.primary:hover{filter:brightness(1.08)}
+  select{background:var(--crust);color:var(--text);border:1px solid var(--surface0);border-radius:7px;padding:8px;font-family:var(--mono);font-size:12px}
+  .status{font-family:var(--mono);font-size:12px;margin-top:10px;min-height:18px}
+  .status.ok{color:var(--green)}.status.err{color:var(--red)}
+  .meta{font-family:var(--mono);font-size:11.5px;color:var(--overlay);margin-top:8px}
+  .field{margin-bottom:14px}
+  .hashout{background:var(--crust);border:1px solid var(--surface0);border-radius:8px;padding:12px;
+    font-family:var(--mono);font-size:12px;word-break:break-all;color:var(--teal);min-height:44px}
+  footer{border-top:1px solid var(--surface0);padding:20px 0 34px;background:var(--mantle)}
+  .foot{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:11.5px;color:var(--overlay)}
+  .foot a{color:var(--subtext);text-decoration:none}
+  .foot a:hover{color:var(--blue)}
+  .hint{font-size:12.5px;color:var(--subtext);margin-top:6px}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>DevToolbox<span>.</span></h1>
+    <p class="tag">JSON, Base64, URL encoding and hashing — computed on your device.</p>
+    <span class="badge">nothing you paste leaves this page</span>
+  </div>
+</header>
+
+<nav class="wrap" role="tablist">
+  <button role="tab" id="t-json" aria-selected="true" aria-controls="p-json">JSON</button>
+  <button role="tab" id="t-b64" aria-selected="false" aria-controls="p-b64">Base64</button>
+  <button role="tab" id="t-url" aria-selected="false" aria-controls="p-url">URL</button>
+  <button role="tab" id="t-hash" aria-selected="false" aria-controls="p-hash">Hash</button>
+</nav>
+
+<main class="wrap">
+
+  <section class="pane on" id="p-json" role="tabpanel" aria-labelledby="t-json">
+    <div class="cols">
+      <div>
+        <label for="json-in">Input</label>
+        <textarea id="json-in" spellcheck="false" placeholder='{"paste":"your JSON here"}'></textarea>
+        <div class="row">
+          <button class="act primary" id="json-format">Format</button>
+          <button class="act" id="json-minify">Minify</button>
+          <button class="act" id="json-validate">Validate</button>
+          <select id="json-indent" aria-label="Indent">
+            <option value="2" selected>2 spaces</option>
+            <option value="4">4 spaces</option>
+            <option value="1">1 space</option>
+            <option value="tab">tab</option>
+          </select>
+        </div>
+        <div class="status" id="json-status"></div>
+      </div>
+      <div>
+        <label for="json-out">Result</label>
+        <textarea id="json-out" spellcheck="false" readonly placeholder="output appears here"></textarea>
+        <div class="meta" id="json-meta"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pane" id="p-b64" role="tabpanel" aria-labelledby="t-b64">
+    <div class="cols">
+      <div>
+        <label for="b64-in">Text or Base64</label>
+        <textarea id="b64-in" spellcheck="false" placeholder="Type text to encode, or paste Base64 to decode"></textarea>
+        <div class="row">
+          <button class="act primary" id="b64-encode">Encode</button>
+          <button class="act" id="b64-decode">Decode</button>
+        </div>
+        <div class="status" id="b64-status"></div>
+      </div>
+      <div>
+        <label for="b64-out">Result</label>
+        <textarea id="b64-out" spellcheck="false" readonly></textarea>
+        <div class="meta" id="b64-meta"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pane" id="p-url" role="tabpanel" aria-labelledby="t-url">
+    <div class="cols">
+      <div>
+        <label for="url-in">Input</label>
+        <textarea id="url-in" spellcheck="false" placeholder="a query string, a path, or a whole URL"></textarea>
+        <div class="row">
+          <button class="act primary" id="url-enc">Encode</button>
+          <button class="act" id="url-dec">Decode</button>
+          <button class="act" id="url-enc-uri">Encode URI only</button>
+        </div>
+        <div class="status" id="url-status"></div>
+      </div>
+      <div>
+        <label for="url-out">Result</label>
+        <textarea id="url-out" spellcheck="false" readonly></textarea>
+        <div class="hint">Encode escapes everything including <code>/?&amp;=</code>. Encode URI only keeps those, which is what you want for a path or a full address.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pane" id="p-hash" role="tabpanel" aria-labelledby="t-hash">
+    <div class="field">
+      <label for="hash-in">Text to hash</label>
+      <textarea id="hash-in" spellcheck="false" style="min-height:140px" placeholder="anything"></textarea>
+    </div>
+    <div class="row">
+      <button class="act primary" id="hash-go">Hash</button>
+      <span class="meta">SHA-256, SHA-1 and SHA-512 via the browser's own WebCrypto.</span>
+    </div>
+    <div class="field"><label>SHA-256</label><div class="hashout" id="h256">—</div></div>
+    <div class="field"><label>SHA-1</label><div class="hashout" id="h1">—</div></div>
+    <div class="field"><label>SHA-512</label><div class="hashout" id="h512">—</div></div>
+    <div class="status" id="hash-status"></div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <span>Built by <a href="https://github.com/QuantumCoder-14">Siddhant Neekhra</a> · MIT with Commons Clause</span>
+      <span>No server, no tracking. Save the page for offline use.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ================= CORE (tested separately) ================= */
+  // <<CORE
+  function parseJson(text) {
+    // Returns {ok:true, value} or {ok:false, error, line, column}
+    try {
+      return { ok: true, value: JSON.parse(text) };
+    } catch (err) {
+      var message = String(err.message || err);
+      var pos = /position (\d+)/i.exec(message);
+      var line = null, column = null;
+      if (pos) {
+        var index = Math.min(Number(pos[1]), text.length);
+        var before = text.slice(0, index);
+        line = before.split('\n').length;
+        column = index - before.lastIndexOf('\n');
+      }
+      return { ok: false, error: message, line: line, column: column };
+    }
+  }
+
+  function formatJson(text, indent) {
+    var parsed = parseJson(text);
+    if (!parsed.ok) return parsed;
+    var pad = indent === 'tab' ? '\t' : ' '.repeat(Number(indent) || 2);
+    return { ok: true, value: JSON.stringify(parsed.value, null, pad) };
+  }
+
+  function minifyJson(text) {
+    var parsed = parseJson(text);
+    if (!parsed.ok) return parsed;
+    return { ok: true, value: JSON.stringify(parsed.value) };
+  }
+
+  function jsonStats(value) {
+    var keys = 0, depth = 0;
+    (function walk(node, level) {
+      depth = Math.max(depth, level);
+      if (Array.isArray(node)) {
+        node.forEach(function (item) { walk(item, level + 1); });
+      } else if (node && typeof node === 'object') {
+        Object.keys(node).forEach(function (key) { keys++; walk(node[key], level + 1); });
+      }
+    })(value, 1);
+    return { keys: keys, depth: depth };
+  }
+
+  function bytesToBase64(bytes) {
+    var binary = '';
+    for (var i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+  }
+
+  function base64ToBytes(text) {
+    var binary = atob(String(text).replace(/\s+/g, ''));
+    var bytes = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+
+  function encodeBase64(text) {
+    return bytesToBase64(new TextEncoder().encode(text));
+  }
+
+  function decodeBase64(text) {
+    // Throws on invalid input; the caller reports it rather than guessing.
+    return new TextDecoder('utf-8', { fatal: false }).decode(base64ToBytes(text));
+  }
+
+  function isProbablyBase64(text) {
+    var clean = String(text).replace(/\s+/g, '');
+    return clean.length > 0 && clean.length % 4 === 0 && /^[A-Za-z0-9+/]+={0,2}$/.test(clean);
+  }
+
+  function encodeUrlComponent(text) { return encodeURIComponent(text); }
+  function decodeUrlComponent(text) { return decodeURIComponent(text.replace(/\+/g, ' ')); }
+  function encodeUri(text) { return encodeURI(text); }
+
+  function hex(buffer) {
+    return Array.prototype.map.call(new Uint8Array(buffer), function (b) {
+      return b.toString(16).padStart(2, '0');
+    }).join('');
+  }
+  // CORE>>
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { parseJson: parseJson, formatJson: formatJson, minifyJson: minifyJson,
+      jsonStats: jsonStats, encodeBase64: encodeBase64, decodeBase64: decodeBase64,
+      isProbablyBase64: isProbablyBase64, encodeUrlComponent: encodeUrlComponent,
+      decodeUrlComponent: decodeUrlComponent, encodeUri: encodeUri };
+  }
+
+  /* ================= UI ================= */
+  var $ = function (id) { return document.getElementById(id); };
+
+  function say(el, text, kind) {
+    el.textContent = text || '';
+    el.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  function humanBytes(n) {
+    if (n < 1024) return n + ' B';
+    if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
+    return (n / 1048576).toFixed(1) + ' MB';
+  }
+
+  var tabs = [['t-json','p-json'],['t-b64','p-b64'],['t-url','p-url'],['t-hash','p-hash']];
+  tabs.forEach(function (pair) {
+    $(pair[0]).addEventListener('click', function () {
+      tabs.forEach(function (other) {
+        var on = other[0] === pair[0];
+        $(other[0]).setAttribute('aria-selected', on ? 'true' : 'false');
+        $(other[1]).classList.toggle('on', on);
+      });
+    });
+  });
+
+  // JSON
+  $('json-format').addEventListener('click', function () {
+    var result = formatJson($('json-in').value, $('json-indent').value);
+    if (!result.ok) { say($('json-status'), 'Invalid JSON: ' + result.error, 'err'); return; }
+    $('json-out').value = result.value;
+    var stats = jsonStats(JSON.parse(result.value));
+    say($('json-status'), 'Valid JSON', 'ok');
+    $('json-meta').textContent = stats.keys + ' keys, nesting depth ' + stats.depth + ', ' +
+      humanBytes(new Blob([result.value]).size);
+  });
+
+  $('json-minify').addEventListener('click', function () {
+    var result = minifyJson($('json-in').value);
+    if (!result.ok) { say($('json-status'), 'Invalid JSON: ' + result.error, 'err'); return; }
+    $('json-out').value = result.value;
+    say($('json-status'), 'Minified', 'ok');
+    $('json-meta').textContent = humanBytes(new Blob([result.value]).size);
+  });
+
+  $('json-validate').addEventListener('click', function () {
+    var result = parseJson($('json-in').value);
+    if (result.ok) {
+      var stats = jsonStats(result.value);
+      say($('json-status'), 'Valid JSON — ' + stats.keys + ' keys, depth ' + stats.depth, 'ok');
+      $('json-meta').textContent = '';
+    } else {
+      var where = result.line ? ' (line ' + result.line + ', column ' + result.column + ')' : '';
+      say($('json-status'), result.error + where, 'err');
+      $('json-meta').textContent = '';
+    }
+  });
+
+  // Base64
+  $('b64-encode').addEventListener('click', function () {
+    var value = $('b64-in').value;
+    var out = encodeBase64(value);
+    $('b64-out').value = out;
+    say($('b64-status'), 'Encoded', 'ok');
+    $('b64-meta').textContent = value.length + ' characters -> ' + out.length + ' Base64 characters';
+  });
+
+  $('b64-decode').addEventListener('click', function () {
+    var value = $('b64-in').value.trim();
+    if (!isProbablyBase64(value)) {
+      say($('b64-status'), 'That does not look like Base64 (wrong length or characters)', 'err');
+      return;
+    }
+    try {
+      var out = decodeBase64(value);
+      $('b64-out').value = out;
+      say($('b64-status'), 'Decoded', 'ok');
+      $('b64-meta').textContent = out.length + ' characters';
+    } catch (err) {
+      say($('b64-status'), 'Could not decode: ' + err.message, 'err');
+    }
+  });
+
+  // URL
+  function urlAction(fn, label) {
+    var value = $('url-in').value;
+    try {
+      var out = fn(value);
+      $('url-out').value = out;
+      say($('url-status'), label, 'ok');
+    } catch (err) {
+      say($('url-status'), 'Failed: ' + err.message, 'err');
+    }
+  }
+  $('url-enc').addEventListener('click', function () { urlAction(encodeUrlComponent, 'Encoded (everything escaped)'); });
+  $('url-dec').addEventListener('click', function () { urlAction(decodeUrlComponent, 'Decoded'); });
+  $('url-enc-uri').addEventListener('click', function () { urlAction(encodeUri, 'Encoded URI (kept / ? & =)'); });
+
+  // Hash
+  $('hash-go').addEventListener('click', function () {
+    var text = $('hash-in').value;
+    if (!window.crypto || !window.crypto.subtle) {
+      say($('hash-status'), 'WebCrypto is unavailable — this needs https:// or localhost', 'err');
+      return;
+    }
+    var data = new TextEncoder().encode(text);
+    ['SHA-256', 'SHA-1', 'SHA-512'].forEach(function (alg, index) {
+      crypto.subtle.digest(alg, data).then(function (buffer) {
+        var target = [ 'h256', 'h1', 'h512' ][index];
+        $(target).textContent = hex(buffer);
+      }).catch(function (err) {
+        say($('hash-status'), alg + ' failed: ' + err.message, 'err');
+      });
+    });
+    say($('hash-status'), 'Hashed ' + text.length + ' characters', 'ok');
+  });
+})();
+</script>
+</body>
+</html>
